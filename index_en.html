@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS Network - Modern Network Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-slate-500">Initializing MS Network...</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const Card = ({ title, children, iconName }) => {
+            const Icon = lucide.icons[iconName];
+            return (
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                    <div className="flex items-center mb-4">
+                        {Icon && <i data-lucide={iconName} className="w-5 h-5 mr-2 text-blue-600"></i>}
+                        <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
+                    </div>
+                    {children}
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [status, setStatus] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [dns, setDns] = useState('');
+            const [proxyHost, setProxyHost] = useState('');
+            const [proxyPort, setProxyPort] = useState('');
+
+            const fetchStatus = async () => {
+                try {
+                    const res = await fetch('http://127.0.0.1:5000/api/status');
+                    const data = await res.json();
+                    setStatus(data);
+                    setLoading(false);
+                    setTimeout(() => lucide.createIcons(), 100);
+                } catch (err) {
+                    console.error("Failed to fetch status", err);
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                fetchStatus();
+                fetch('http://127.0.0.1:5000/api/backup', { method: 'POST' });
+            }, []);
+
+            const handleUpdateDNS = async () => {
+                await fetch('http://127.0.0.1:5000/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dns: dns || 'Empty' })
+                });
+                alert('DNS Updated');
+                fetchStatus();
+            };
+
+            const handleUpdateProxy = async () => {
+                await fetch('http://127.0.0.1:5000/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proxy: { host: proxyHost, port: proxyPort } })
+                });
+                alert('Proxy Updated');
+                fetchStatus();
+            };
+
+            const handleRestore = async () => {
+                const res = await fetch('http://127.0.0.1:5000/api/restore', { method: 'POST' });
+                const data = await res.json();
+                alert(data.message || data.error);
+                fetchStatus();
+            };
+
+            if (loading && !status) return (
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-slate-500">Connecting to Backend...</p>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="max-w-4xl mx-auto py-10 px-4">
+                    <header className="mb-10 flex justify-between items-center">
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-3xl font-bold text-slate-900">MS Network</h1>
+                                <a href="/" className="text-xs bg-slate-200 hover:bg-slate-300 px-2 py-1 rounded text-slate-600 transition-colors">中文版</a>
+                            </div>
+                            <p className="text-slate-500 mt-1">Modern local network management tool</p>
+                        </div>
+                        <button 
+                            onClick={handleRestore}
+                            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-sm flex items-center"
+                        >
+                            <i data-lucide="rotate-ccw" className="w-4 h-4 mr-2"></i>
+                            One-Click Restore
+                        </button>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card title="Network Status" iconName="activity">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase">Current Service</label>
+                                    <p className="text-slate-700 font-medium">{status?.service || 'Unknown'}</p>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase">DNS Servers</label>
+                                    <p className="text-slate-700 font-medium break-all">{status?.dns || 'Automatic'}</p>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase">Proxy Status</label>
+                                    <p className="text-slate-700 font-medium">
+                                        {status?.web_proxy?.includes('Enabled: Yes') ? 'Enabled' : 'Disabled'}
+                                    </p>
+                                </div>
+                            </div>
+                        </Card>
+
+                        <Card title="Configuration" iconName="settings">
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Modify DNS</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={dns}
+                                            onChange={(e) => setDns(e.target.value)}
+                                            placeholder="8.8.8.8 1.1.1.1"
+                                            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                        <button onClick={handleUpdateDNS} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Update</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">HTTP/HTTPS Proxy</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={proxyHost}
+                                            onChange={(e) => setProxyHost(e.target.value)}
+                                            placeholder="Host"
+                                            className="col-span-2 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={proxyPort}
+                                            onChange={(e) => setProxyPort(e.target.value)}
+                                            placeholder="Port"
+                                            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <button onClick={handleUpdateProxy} className="w-full mt-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900">Apply Proxy</button>
+                                </div>
+                            </div>
+                        </Card>
+
+                        <Card title="Certificates" iconName="shield-check">
+                            <p className="text-sm text-slate-500 mb-4">Install trusted root certificates</p>
+                            <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-blue-400 transition-colors cursor-pointer group">
+                                <input type="file" className="hidden" id="cert-upload" onChange={async (e) => {
+                                    const file = e.target.files[0];
+                                    if (!file) return;
+                                    const formData = new FormData();
+                                    formData.append('file', file);
+                                    const res = await fetch('http://127.0.0.1:5000/api/cert', {
+                                        method: 'POST',
+                                        body: formData
+                                    });
+                                    const data = await res.json();
+                                    alert(data.message);
+                                }} />
+                                <label htmlFor="cert-upload" className="cursor-pointer">
+                                    <i data-lucide="upload" className="w-8 h-8 mx-auto text-slate-300 group-hover:text-blue-500 mb-2"></i>
+                                    <span className="text-sm font-medium text-slate-600 group-hover:text-blue-600">Click to upload .crt or .pem</span>
+                                </label>
+                            </div>
+                        </Card>
+
+                        <Card title="System Info" iconName="info">
+                            <pre className="text-[10px] bg-slate-50 p-4 rounded-lg overflow-x-auto text-slate-600 border border-slate-100">
+                                {status?.info}
+                            </pre>
+                        </Card>
+                    </div>
+
+                    <footer className="mt-12 text-center text-slate-400 text-sm">
+                        &copy; 2026 MS Network Tool. All Rights Reserved.
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+        
+        setTimeout(() => lucide.createIcons(), 500);
+    </script>
+</body>
+</html>
