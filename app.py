@@ -133,5 +133,6 @@ def update_config():
         
     return jsonify({"message": "Configuration updated"})
 
+def flush_dns():
 if __name__ == '__main__':
     app.run(port=5000)
